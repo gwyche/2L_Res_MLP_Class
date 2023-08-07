@@ -41,7 +41,33 @@ class ResNN {
 
         this.transformedVector = [];
         this.transformedVectorTemp = [];
+
+        this.gradientMatrix2 = this.createZMatrix(this.inputSize);
+        this.gradientMatrix1 = this.createZMatrix(this.inputSize);
+        //END MAIN VARIABLES
+
+        this.inputVector = this.input;
+
+        //PAD INPUT AND TARGET VECTORS
+        for(let i = this.input.length; i < this.inputSize; i++){
+            this.inputVector[i] = 0;
+        }
+
+        for(let i = this.targetVector.length; i < this.inputSize; i++){
+            this.targetVector[i] = 0;
+        }
+
+        this.dErrorVectr2 = [];
+        this.dOutput2 = [];
+
+        this.weightMatrix1 = [];
+        this.weightMatrix2 = [];
+        this.weightMatrix2Transpose = [];
+
+        this.reservoirMatrix = [];
+        this.normalizedProjectedInput = [];
     }
+
 //END CONSTRUCTOR
 //END PADDING
 
@@ -85,7 +111,7 @@ createResMatrix(diameter){
     for (let i = 0; i < diameter; i++) {
         matrix[i] = [];
         for(let j = 0; j < diameter; j++) {
-            if(Math.random() < reservoirPercentage){
+            if(Math.random() < this.reservoirPercentage){
                 matrix[i][j] = Math.random() - .5;
             }else{
                 matrix[i][j] = 0;
@@ -104,9 +130,9 @@ matrixMultiply1(inputV, weightM, diam){
         for(let k = 0; k < diam; k++){
             sum = sum + (inputV[k] * weightM[i][k]);
         }
-        outputVector1[i] = sum;
-        outputVectorA1[i] = Math.tanh(sum + bias);
-        outputVector[i] = Math.tanh(sum + bias);
+        this.outputVector1[i] = sum;
+        this.outputVectorA1[i] = Math.tanh(sum + this.bias);
+        outputVector[i] = Math.tanh(sum + this.bias);
     }
     return outputVector;
 }
@@ -118,9 +144,9 @@ matrixMultiply2(inputV, weightM, diam){
         for(let k = 0; k < diam; k++){
             sum = sum + (inputV[k] * weightM[i][k]);
         }
-        outputVector2[i] = sum;
-        outputVectorA2[i] = Math.tanh(sum + bias);
-        outputVector[i] = Math.tanh(sum + bias);
+        this.outputVector2[i] = sum;
+        this.outputVectorA2[i] = Math.tanh(sum + this.bias);
+        outputVector[i] = Math.tanh(sum + this.bias);
     }
     return outputVector;
 }
@@ -128,7 +154,7 @@ matrixMultiply2(inputV, weightM, diam){
 
 //END FORWARD PASS
 
-//ACKWARD PASS UTIL FUNCTIONS
+//BACKWARD PASS UTIL FUNCTIONS
 
 
 //RESERVOIR
@@ -140,7 +166,7 @@ createResMatrix(diameter){
     for (let i = 0; i < diameter; i++) {
         matrix[i] = [];
         for(let k = 0; k < diameter; k++) {
-            if(Math.random() < reservoirPercentage){
+            if(Math.random() < this.reservoirPercentage){
                 matrix[i][k] = Math.random() - .5;
             }else{
                 matrix[i][k] = 0;
@@ -162,7 +188,7 @@ updateReservoirProjection(inputV, weightM, diam, zeroIndex, initialInputProjecti
         for(let j = 0; j < diam; j++){
             sum = sum + (inputV[j] * weightM[i][j]);
         }
-        outputVector[i] = Math.tanh(sum + bias);
+        outputVector[i] = Math.tanh(sum + this.bias);
     }
     initialInputProjection = outputVector;
     return outputVector;
@@ -191,15 +217,15 @@ backPropagateO(arg1, arg2, arg3, arg4){
     dOutput = arg4;
 
     
-    for(let i = 0; i < inputSize; i++){
-        for(let j = 0; j < inputSize; j++){
-            gradientMatrix2[i][j] = (learningFactor*outputVector1[j]*dOutput[i][j]*dError[i][j]);
+    for(let i = 0; i < this.inputSize; i++){
+        for(let j = 0; j < this.inputSize; j++){
+            this.gradientMatrix2[i][j] = (this.learningFactor*this.outputVector1[j]*dOutput[i][j]*dError[i][j]);
         }
     }
 
-    for(let i = 0; i < inputSize; i++){
-        for(let j = 0; j < inputSize; j++){
-            bpWeights[i][j] = bpWeights[i][j] + gradientMatrix2[i][j];
+    for(let i = 0; i < this.inputSize; i++){
+        for(let j = 0; j < this.inputSize; j++){
+            bpWeights[i][j] = bpWeights[i][j] + this.gradientMatrix2[i][j];
         }
     }
 
@@ -209,7 +235,7 @@ backPropagateO(arg1, arg2, arg3, arg4){
 
 
 backPropagateH1(arg1, arg3, arg4, arg5){
-    let dErrorMost = createZMatrix(inputSize);
+    let dErrorMost = this.createZMatrix(this.inputSize);
     let bpWeights = [];
     let outV = []
     let dOutput = [];
@@ -222,23 +248,23 @@ backPropagateH1(arg1, arg3, arg4, arg5){
 
 
     //Calculate dErrorMost//
-    for(let i = 0; i < inputSize; i++){
+    for(let i = 0; i < this.inputSize; i++){
         E = 0;
-        for(let j = 0; j < inputSize; j++){
-                E = E + weightMatrix2Transpose[i][j]*dErrorVectr2[i][j]*dOutput2[i][j];
+        for(let j = 0; j < this.inputSize; j++){
+                E = E + this.weightMatrix2Transpose[i][j]*this.dErrorVectr2[i][j]*this.dOutput2[i][j];
             dErrorMost[i][j] = E;
         }
     }
 
-    for(let i = 0; i < inputSize; i++){
-        for(let j = 0; j < inputSize; j++){
-            gradientMatrix1[i][j] = (learningFactor*normalizedProjectedInput[i]*dOutput[j]*dErrorMost[i][j]);
+    for(let i = 0; i < this.inputSize; i++){
+        for(let j = 0; j < this.inputSize; j++){
+            this.gradientMatrix1[i][j] = (this.learningFactor*this.normalizedProjectedInput[i]*dOutput[j]*dErrorMost[i][j]);
         }
     }
 
-    for(let i = 0; i < inputSize; i++){
-        for(let j = 0; j < inputSize; j++){
-            bpWeights[i][j] = bpWeights[i][j] + gradientMatrix1[i][j];
+    for(let i = 0; i < this.inputSize; i++){
+        for(let j = 0; j < this.inputSize; j++){
+            bpWeights[i][j] = bpWeights[i][j] + this.gradientMatrix1[i][j];
         }
     }
 
@@ -249,96 +275,82 @@ backPropagateH1(arg1, arg3, arg4, arg5){
 
 //END BACKWARD PASS UTIL FUNCTIONS
 train(){
-this.gradientMatrix2 = createZMatrix(inputSize);
-this.gradientMatrix1 = createZMatrix(inputSize);
-//END MAIN VARIABLES
 
-inputVector = input;
+this.dErrorVectr2 = this.createZMatrix(this.inputSize);
+this.dOutput2 = this.createZMatrix(this.inputSize);
 
-//PAD INPUT AND TARGET VECTORS
-for(let i = input.length; i < inputSize; i++){
-    inputVector[i] = 0;
-}
+this.weightMatrix1 = this.create0Matrix(this.inputSize);
+this.weightMatrix2 = this.create0Matrix(this.inputSize);
+this.weightMatrix2Transpose = this.create0Matrix(this.inputSize);
 
-for(let i = targetVector.length; i < inputSize; i++){
-    targetVector[i] = 0;
-}
-
-this.dErrorVectr2 = createZMatrix(inputSize);
-this.dOutput2 = createZMatrix(inputSize);
+this.reservoirMatrix = this.createResMatrix(this.inputSize);
 
 //New randomized square weight matrix
-let weightMatrix1 = create0Matrix(inputSize);
-let weightMatrix2 = create0Matrix(inputSize);
-let weightMatrix2Transpose = create0Matrix(inputSize);
-
-let reservoirMatrix = createResMatrix(inputSize);
 let projectedInputVector = [];
-for(let i = 0; i < inputSize; i++){
+for(let i = 0; i < this.inputSize; i++){
     projectedInputVector[i] = 0;
 }
-let normalizedProjectedInput = [];
 
 
-for(let r = 0; r < runs; r++){
+
+for(let r = 0; r < this.runs; r++){
     var errorInitial = 0;
-    var tempError = 0;
-    var finalError = 0;
+    // var tempError = 0;
+    // var finalError = 0;
 
-    if(rcOn == true){
-        projectedInputVector = updateReservoirProjection(inputVector, reservoirMatrix, inputSize, input.length, projectedInputVector);
-        normalizedProjectedInput = normalizeInputs(projectedInputVector);
-        reservoirGearRatio = 1;
-        //console.log(normalizedProjectedInput);
+    if(this.rcOn == true){
+        projectedInputVector = this.updateReservoirProjection(this.inputVector, this.reservoirMatrix, this.inputSize, this.input.length, projectedInputVector);
+        this.normalizedProjectedInput = this.normalizeInputs(projectedInputVector);
+        this.reservoirGearRatio = 1;
     } else{
-        normalizedProjectedInput = inputVector;
+        this.normalizedProjectedInput = this.inputVector;
     }
 
-    for(let a = 0; a < reservoirGearRatio; a++){
+    for(let a = 0; a < this.reservoirGearRatio; a++){
 
-        transformedVector = matrixMultiply2(matrixMultiply1(normalizedProjectedInput, weightMatrix1, inputVector.length),weightMatrix2,inputVector.length);
+        this.transformedVector = this.matrixMultiply2(this.matrixMultiply1(this.normalizedProjectedInput, this.weightMatrix1, this.inputVector.length), this.weightMatrix2, this.inputVector.length);
         //console.log(transformedVector);
 
-        for(let i = 0; i < inputSize; i++){
-            dOutput1[i] = dActivation(outputVector1[i]);
+        for(let i = 0; i < this.inputSize; i++){
+            this.dOutput1[i] = this.dActivation(this.outputVector1[i]);
         }
 
     
-        for(let i = 0; i < inputSize; i++){
-            for(let j = 0; j < inputSize; j++){
-                dOutput2[i][j] = dActivation(outputVector2[i]);
+        for(let i = 0; i < this.inputSize; i++){
+            for(let j = 0; j < this.inputSize; j++){
+                this.dOutput2[i][j] = this.dActivation(this.outputVector2[i]);
             }
         }
 
     
-        for(let k = 0; k < inputSize; k++){
-            errorVectorL2[k] = ((Math.pow((targetVector[k] - transformedVector[k]),2))/2);
+        for(let k = 0; k < this.inputSize; k++){
+            this.errorVectorL2[k] = ((Math.pow((this.targetVector[k] - this.transformedVector[k]),2))/2);
         }
 
 
-        for(let i = 0; i < inputSize; i++){
-            for(let j = 0; j < inputSize; j++){
-                dErrorVectr2[i][j] = (targetVector[i] - transformedVector[i]);
+        for(let i = 0; i < this.inputSize; i++){
+            for(let j = 0; j < this.inputSize; j++){
+                this.dErrorVectr2[i][j] = (this.targetVector[i] - this.transformedVector[i]);
             }
         }
 
 
-        for(let k = 0; k < inputSize; k++){
-            errorInitial = errorInitial + ((Math.pow((targetVector[k] - transformedVector[k]),2))/2);
+        for(let k = 0; k < this.inputSize; k++){
+            errorInitial = errorInitial + ((Math.pow((this.targetVector[k] - this.transformedVector[k]),2))/2);
         }
 
         //Backpropogate Weight Matrix 2
-        weightMatrix2 = backPropagateO(weightMatrix2, dErrorVectr2, outputVectorA1, dOutput2);
+        this.weightMatrix2 = this.backPropagateO(this.weightMatrix2, this.dErrorVectr2, this.outputVectorA1, this.dOutput2);
 
         //Transpose Weight Matrix 2
-        for(let s = 0; s < inputSize; s++){
-            for(let t = 0; t < inputSize; t++){
-                weightMatrix2Transpose[t][s] = weightMatrix2[s][t];
+        for(let s = 0; s < this.inputSize; s++){
+            for(let t = 0; t < this.inputSize; t++){
+                this.weightMatrix2Transpose[t][s] = this.weightMatrix2[s][t];
             }
         }
 
         //Backpropogate Weight Matrix 1
-        weightMatrix1 = backPropagateH1(weightMatrix1, outputVector1, dOutput1, outputVectorA1);
+        this.weightMatrix1 = this.backPropagateH1(this.weightMatrix1, this.outputVector1, this.dOutput1, this.outputVectorA1);
 
         console.log("Error: "+errorInitial.toExponential());
     }
